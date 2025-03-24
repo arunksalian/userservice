@@ -4,20 +4,18 @@ import com.citpl.userservice.userservice.model.User;
 import com.citpl.userservice.userservice.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
-import java.util.Optional;
 
 @Slf4j
 @RestController
@@ -29,11 +27,12 @@ public class UserController {
 	private final UserService userService;
 	
 	@GetMapping
-	@Operation(summary = "Get all users", description = "Retrieves a list of all users")
+	@Operation(summary = "Get all users", description = "Retrieves a paginated list of all users")
 	@ApiResponse(responseCode = "200", description = "Successfully retrieved users")
-	public ResponseEntity<List<User>> getAllUsers() {
-		log.debug("Received request to get all users");
-		return ResponseEntity.ok(userService.getAllUsers());
+	public ResponseEntity<Page<User>> getAllUsers(
+		@PageableDefault(sort = "id", size = 10) Pageable pageable) {
+		log.debug("Received request to get users with pagination: {}", pageable);
+		return ResponseEntity.ok(userService.getAllUsers(pageable));
 	}
 
 	@GetMapping("/{id}")

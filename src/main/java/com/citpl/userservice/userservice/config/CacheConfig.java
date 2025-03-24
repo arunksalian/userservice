@@ -4,10 +4,9 @@ import org.infinispan.configuration.cache.Configuration;
 import org.infinispan.configuration.cache.ConfigurationBuilder;
 import org.infinispan.manager.EmbeddedCacheManager;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.cache.annotation.EnableCaching;
 
-@Configuration
+@org.springframework.context.annotation.Configuration
 @EnableCaching
 public class CacheConfig {
 

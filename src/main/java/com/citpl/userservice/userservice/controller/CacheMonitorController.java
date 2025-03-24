@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
 
 @Slf4j
 @RestController
@@ -35,8 +36,8 @@ public class CacheMonitorController {
         stats.put("missCount", cache.getAdvancedCache().getStats().getMisses());
         stats.put("evictionCount", cache.getAdvancedCache().getStats().getEvictions());
         stats.put("averageReadTime", cache.getAdvancedCache().getStats().getAverageReadTime());
-        stats.put("averageWriteTime", cache.getAdvancedCache().getStats().getAverageWriteTime());
-        stats.put("averageRemoveTime", cache.getAdvancedCache().getStats().getAverageRemoveTime());
+        stats.put("writeCount", cache.getAdvancedCache().getStats().getStores());
+        stats.put("removeCount", cache.getAdvancedCache().getStats().getRemoveHits());
         
         return ResponseEntity.ok(stats);
     }
@@ -45,13 +46,30 @@ public class CacheMonitorController {
     @Operation(summary = "Get cache health", description = "Retrieves health status of the users cache")
     public ResponseEntity<Map<String, Object>> getCacheHealth() {
         log.debug("Retrieving cache health status");
-        Cache<String, Object> cache = cacheManager.getCache("users");
         Map<String, Object> health = new HashMap<>();
         
-        health.put("status", "HEALTHY");
-        health.put("cacheName", "users");
-        health.put("numberOfNodes", cacheManager.getMembers().size());
-        health.put("status", cache.getStatus().toString());
+        try {
+            Cache<String, Object> cache = cacheManager.getCache("users");
+            if (cache != null) {
+                health.put("status", cache.getStatus().toString());
+                health.put("cacheName", "users");
+                health.put("running", cache.getStatus().toString().equals("RUNNING"));
+                health.put("cacheMode", cache.getCacheConfiguration().clustering().cacheMode().toString());
+                health.put("clusterName", cacheManager.getClusterName());
+                
+                List<?> members = cacheManager.getMembers();
+                health.put("numberOfNodes", members != null ? members.size() : 1);
+                health.put("clusterType", members != null && !members.isEmpty() ? "CLUSTERED" : "LOCAL");
+            } else {
+                health.put("status", "NOT_FOUND");
+                health.put("cacheName", "users");
+                health.put("running", false);
+            }
+        } catch (Exception e) {
+            log.error("Error getting cache health", e);
+            health.put("status", "ERROR");
+            health.put("error", e.getMessage());
+        }
         
         return ResponseEntity.ok(health);
     }

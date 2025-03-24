@@ -8,6 +8,9 @@ import org.springframework.cache.annotation.CacheConfig;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -63,9 +66,10 @@ public class UserService {
         return false;
     }
 
-    public List<User> getAllUsers() {
-        log.debug("Fetching all users");
-        return userRepository.findAll();
+    @Cacheable(cacheNames = "users")
+    public Page<User> getAllUsers(Pageable pageable) {
+        log.debug("Fetching all users with pagination: {}", pageable);
+        return userRepository.findAll(pageable);
     }
 
     @CacheEvict(allEntries = true)
