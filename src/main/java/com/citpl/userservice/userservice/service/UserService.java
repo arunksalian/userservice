@@ -1,67 +1,75 @@
 package com.citpl.userservice.userservice.service;
 
 import com.citpl.userservice.userservice.model.User;
+import com.citpl.userservice.userservice.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheConfig;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 import java.util.Optional;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 @CacheConfig(cacheNames = "users")
 public class UserService {
 
-    // Simulating a database with a HashMap
-    private final Map<String, User> userDb = new HashMap<>();
+    private final UserRepository userRepository;
 
-    @Cacheable(cacheNames = "users", key = "#id")
+    @Cacheable(key = "#id")
     public Optional<User> getUserById(String id) {
-        log.info("Fetching user from database with id: {}", id);
-        // Simulate database access delay
-        simulateDelay();
-        return Optional.ofNullable(userDb.get(id));
+        log.debug("Fetching user with ID: {}", id);
+        return userRepository.findById(id);
     }
 
-    @CachePut(cacheNames = "users", key = "#user.id")
+    @CachePut(key = "#user.id")
+    @Transactional
     public User createUser(User user) {
-        log.info("Creating new user with id: {}", user.getId());
-        userDb.put(user.getId(), user);
-        return user;
-    }
-
-    @CachePut(cacheNames = "users", key = "#user.id")
-    public Optional<User> updateUser(User user) {
-        log.info("Updating user with id: {}", user.getId());
-        if (userDb.containsKey(user.getId())) {
-            userDb.put(user.getId(), user);
-            return Optional.of(user);
+        log.debug("Creating new user: {}", user);
+        if (userRepository.existsByUsername(user.getUsername())) {
+            throw new IllegalArgumentException("Username already exists");
         }
-        return Optional.empty();
+        if (userRepository.existsByEmail(user.getEmail())) {
+            throw new IllegalArgumentException("Email already exists");
+        }
+        return userRepository.save(user);
     }
 
-    @CacheEvict(cacheNames = "users", key = "#id")
+    @CachePut(key = "#id")
+    @Transactional
+    public Optional<User> updateUser(String id, User user) {
+        log.debug("Updating user with ID: {} with data: {}", id, user);
+        return userRepository.findById(id)
+                .map(existingUser -> {
+                    user.setId(id);
+                    return userRepository.save(user);
+                });
+    }
+
+    @CacheEvict(key = "#id")
+    @Transactional
     public boolean deleteUser(String id) {
-        log.info("Deleting user with id: {}", id);
-        return userDb.remove(id) != null;
-    }
-
-    @CacheEvict(cacheNames = "users", allEntries = true)
-    public void clearCache() {
-        log.info("Clearing all entries from cache");
-    }
-
-    private void simulateDelay() {
-        try {
-            // Simulate database access delay of 1 second
-            Thread.sleep(1000);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+        log.debug("Deleting user with ID: {}", id);
+        if (userRepository.existsById(id)) {
+            userRepository.deleteById(id);
+            return true;
         }
+        return false;
+    }
+
+    public List<User> getAllUsers() {
+        log.debug("Fetching all users");
+        return userRepository.findAll();
+    }
+
+    @CacheEvict(allEntries = true)
+    public void clearCache() {
+        log.debug("Clearing user cache");
     }
 } 
